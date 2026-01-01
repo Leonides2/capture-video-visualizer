@@ -17,11 +17,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Configurar Node.js
-      - name: setup node
-        uses: actions/setup-node@v4
+      # 1. Configurar Bun
+      - name: setup bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
+          bun-version: latest
 
       # 2. Instalar dependencias de Rust
       - name: install Rust stable
@@ -35,7 +35,7 @@ jobs:
 
       # 4. Instalar dependencias de frontend
       - name: install dependencies
-        run: npm install # o yarn install
+        run: bun install # o yarn install
 
       # 5. Construir la app y crear la Release
       - name: build and release
