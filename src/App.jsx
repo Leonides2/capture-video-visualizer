@@ -12,7 +12,7 @@ function App() {
   const videoRef = useRef(null);
   const videoContainerRef = useRef(null);
 
-  const { videoDevices, selectedDevice, error, selectDevice } = useVideoDevices(videoRef);
+  const { videoDevices, selectedDevice, error, selectDevice, reconnectDevice } = useVideoDevices(videoRef);
   const { zoom, objectFit, setZoom, setObjectFit, toggleFullscreen, resetZoom } = useVideoControls(videoContainerRef);
 
   const handleSelectDevice = async (device) => {
@@ -49,6 +49,7 @@ function App() {
         onToggleFullscreen={toggleFullscreen}
         isVisible={!!selectedDevice}
         videoRef={videoRef}
+        onReconnect={reconnectDevice}
       />
     </main>
   );

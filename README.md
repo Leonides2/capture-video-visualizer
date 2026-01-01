@@ -276,3 +276,6 @@ Desarrollado con ❤️ usando Tauri + React
 ---
 
 **Nota**: Esta aplicación usa WebRTC para acceso a dispositivos de video. Para control avanzado similar a OBS (brillo, contraste, etc.), se requeriría implementar plugins nativos con DirectShow (Windows), AVFoundation (macOS) o V4L2 (Linux).
+
+
+[!IMPORTANT] Es proyecto fue creado usando vibecoding. Tiene mucho potencial de mejora y solo fue creado como herramienta rapida para visualizar un capturadora de video.

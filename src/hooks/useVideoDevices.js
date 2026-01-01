@@ -81,6 +81,7 @@ export function useVideoDevices(videoRef) {
           frameRate: maxResolution ? { ideal: maxResolution.frameRate } : { ideal: 60 }
         },
         audio: {
+          deviceId: { exact: device.deviceId },
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false
@@ -102,23 +103,33 @@ export function useVideoDevices(videoRef) {
               frameRate: { ideal: 60 }
             },
             audio: {
+              deviceId: { exact: device.deviceId },
               echoCancellation: false,
               noiseSuppression: false,
               autoGainControl: false
             }
           });
         } catch (idealError) {
-          console.log("Valores ideales no soportados, usando configuración automática");
+          console.log("Valores ideales no soportados, intentando sin restricciones de audio específico");
           
-          // Último intento sin restricciones
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: device.deviceId } },
-            audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false
-            }
-          });
+          // Tercer intento sin deviceId de audio (algunas capturadoras no tienen audio)
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: device.deviceId } },
+              audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+              }
+            });
+          } catch (audioError) {
+            console.log("Audio no disponible, intentando solo video");
+            
+            // Último intento: solo video sin audio
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: device.deviceId } }
+            });
+          }
         }
       }
 
@@ -132,6 +143,17 @@ export function useVideoDevices(videoRef) {
         const settings = videoTrack.getSettings();
         console.log(`✅ Resolución final: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
         
+        // Mostrar información de audio
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          const audioTrack = audioTracks[0];
+          const audioSettings = audioTrack.getSettings();
+          console.log(`🔊 Audio disponible - Dispositivo: ${audioTrack.label}`);
+          console.log("Configuración de audio:", audioSettings);
+        } else {
+          console.log("⚠️ Sin audio disponible en este dispositivo");
+        }
+        
         // Mostrar información adicional
         console.log("Configuración completa del video:", settings);
       }
@@ -144,6 +166,13 @@ export function useVideoDevices(videoRef) {
     }
   };
 
+  const reconnectDevice = async () => {
+    if (selectedDevice) {
+      console.log(`🔄 Reiniciando conexión con: ${selectedDevice.label}`);
+      await selectDevice(selectedDevice);
+    }
+  };
+
   useEffect(() => {
     getDevices();
   }, []);
@@ -153,6 +182,7 @@ export function useVideoDevices(videoRef) {
     selectedDevice,
     error,
     selectDevice,
+    reconnectDevice,
     refreshDevices: getDevices
   };
 }
