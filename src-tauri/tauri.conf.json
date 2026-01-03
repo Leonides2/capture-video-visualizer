@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "capture-video-visualizer",
+  "productName": "Capture Video Visualizer",
   "version": "0.1.0",
   "identifier": "com.leoni.capture-video-visualizer",
   "build": {
