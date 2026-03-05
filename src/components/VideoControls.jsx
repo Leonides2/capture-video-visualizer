@@ -10,7 +10,10 @@ export default function VideoControls({
   isVisible,
   videoRef,
   onReconnect,
-  hasAudio = true
+  hasAudio = true,
+  cameraFormats = [],
+  selectedFormat = null,
+  onFormatChange = () => { }
 }) {
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
@@ -106,8 +109,8 @@ export default function VideoControls({
           <button
             onClick={() => onObjectFitChange('contain')}
             className={`px-3 py-1 rounded text-sm transition-colors ${objectFit === 'contain'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
               }`}
           >
             Ajustar
@@ -115,8 +118,8 @@ export default function VideoControls({
           <button
             onClick={() => onObjectFitChange('cover')}
             className={`px-3 py-1 rounded text-sm transition-colors ${objectFit === 'cover'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
               }`}
           >
             Llenar
@@ -124,8 +127,8 @@ export default function VideoControls({
           <button
             onClick={() => onObjectFitChange('fill')}
             className={`px-3 py-1 rounded text-sm transition-colors ${objectFit === 'fill'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
               }`}
           >
             Estirar
@@ -135,6 +138,31 @@ export default function VideoControls({
         {/* Separador */}
         <div className="h-6 w-px bg-gray-600"></div>
 
+        {/* Format Selector */}
+        {cameraFormats.length > 0 && (
+          <>
+            <div className="flex items-center gap-2">
+              <select
+                className="bg-gray-700 text-white text-sm rounded px-2 py-1 outline-none border border-gray-600 focus:border-blue-500 cursor-pointer"
+                value={selectedFormat ? JSON.stringify(selectedFormat) : ""}
+                onChange={(e) => {
+                  try {
+                    onFormatChange(JSON.parse(e.target.value));
+                  } catch (err) { }
+                }}
+              >
+                {cameraFormats.map((fmt, idx) => (
+                  <option key={idx} value={JSON.stringify(fmt)}>
+                    {fmt.width}x{fmt.height} - {fmt.fps}fps ({fmt.format})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Separador */}
+            <div className="h-6 w-px bg-gray-600"></div>
+          </>
+        )}
+
         {/* Botones de Acción */}
         <div className="flex items-center gap-2">
           <button
@@ -143,32 +171,6 @@ export default function VideoControls({
             title="Reiniciar zoom y modo de ajuste"
           >
             Reiniciar
-          </button>
-          <button
-            onClick={handleReconnect}
-            disabled={isReconnecting}
-            className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${isReconnecting
-                ? 'bg-yellow-600 text-white cursor-wait'
-                : 'bg-orange-600 hover:bg-orange-700 text-white'
-              }`}
-            title="Reiniciar conexión con el dispositivo seleccionado"
-          >
-            {isReconnecting ? (
-              <>
-                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Reconectando...
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 -960 960 960" width="16" fill="currentColor">
-                  <path d="M480-120q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-480h-60l90-90 90 90H120q0 125 87.5 212.5T480-60q125 0 212.5-87.5T780-360h60q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm0-240q-100 0-170-70t-70-170q0-100 70-170t170-70q100 0 170 70t70 170q0 100-70 170t-170 70Z" />
-                </svg>
-                Reconectar
-              </>
-            )}
           </button>
           <button
             onClick={onToggleFullscreen}

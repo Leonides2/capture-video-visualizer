@@ -1,191 +1,157 @@
 import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 export function useVideoDevices(videoRef) {
   const [videoDevices, setVideoDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [error, setError] = useState(null);
   const [hasAudio, setHasAudio] = useState(true);
+  const [isNativeStream, setIsNativeStream] = useState(false);
+  const [cameraFormats, setCameraFormats] = useState([]);
+  const [selectedFormat, setSelectedFormat] = useState(null);
+  const [streamKey, setStreamKey] = useState(Date.now());
 
   const getDevices = async () => {
     try {
-      // Solicitar permisos de cámara y audio (sin restricciones estrictas)
-      await navigator.mediaDevices.getUserMedia({ 
-        video: true,
-        audio: true 
-      });
-      
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log("Solicitando dispositivos desde Rust Nokhwa...");
+      const devices = await invoke('get_video_devices');
 
-      console.log("Dispositivos de Video Encontrados:");
-      videoDevices.forEach((device, index) => {
-        console.log(`${index}: ${device.label} (ID: ${device.deviceId})`);
-      });
+      console.log("Dispositivos de Video Nativos Encontrados:", devices);
+      // Mapear al mismo formato que usábamos en web para mantener compatibilidad UI
+      const mappedDevices = devices.map(d => ({
+        deviceId: d.id.toString(), // en Rust pasamos id numérico
+        label: d.name,
+        groupId: d.description, // lo reusamos por si acaso
+        kind: 'videoinput'
+      }));
 
-      setVideoDevices(videoDevices);
-      if (videoDevices.length > 0 && !selectedDevice) {
-        setSelectedDevice(videoDevices[0]);
+      setVideoDevices(mappedDevices);
+      if (mappedDevices.length > 0 && !selectedDevice) {
+        setSelectedDevice(mappedDevices[0]);
       }
       setError(null);
     } catch (err) {
-      console.error("Error al acceder a los dispositivos de video:", err);
-      setError("No se pudieron acceder a los dispositivos de video. Verifica los permisos.");
+      console.error("Error al obtener dispositivos desde Rust:", err);
+      setError("No se pudieron acceder a los dispositivos de video mediante Rust.");
     }
   };
 
   const selectDevice = async (device) => {
     try {
-      // Detener el stream anterior si existe
+      if (!device) {
+        if (isNativeStream) {
+          try {
+            await invoke('stop_video_stream');
+          } catch (e) {
+            console.error("Error stopping native stream:", e);
+          }
+        }
+        if (videoRef.current && videoRef.current.srcObject) {
+          const oldStream = videoRef.current.srcObject;
+          oldStream.getTracks().forEach(track => track.stop());
+          videoRef.current.srcObject = null;
+        }
+        setSelectedDevice(null);
+        setIsNativeStream(false);
+        setCameraFormats([]);
+        setSelectedFormat(null);
+        return;
+      }
+
+      console.log("Iniciando stream nativo para:", device.label);
+
+      // Detener stream anterior de WebRTC si hubiera quedado abierto
       if (videoRef.current && videoRef.current.srcObject) {
         const oldStream = videoRef.current.srcObject;
         oldStream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
       }
 
-      // Obtener las capacidades del dispositivo
-      let stream = null;
-      let maxResolution = null;
+      // Iniciar el stream en Rust obteniendo primero los formatos
+      const cameraId = parseInt(device.deviceId, 10);
 
+      let formats = [];
       try {
-        // Primero obtener un stream temporal para consultar capacidades
-        const tempStream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: device.deviceId } }
-        });
-        
-        const videoTrack = tempStream.getVideoTracks()[0];
-        const capabilities = videoTrack.getCapabilities();
-        
-        console.log("Capacidades del dispositivo:", capabilities);
-        
-        // Detener el stream temporal
-        tempStream.getTracks().forEach(track => track.stop());
-
-        // Determinar la máxima resolución soportada
-        if (capabilities.width && capabilities.height) {
-          maxResolution = {
-            width: capabilities.width.max || 1920,
-            height: capabilities.height.max || 1080,
-            frameRate: capabilities.frameRate?.max || 60
-          };
-          
-          console.log(`Máxima resolución detectada: ${maxResolution.width}x${maxResolution.height} @ ${maxResolution.frameRate}fps`);
-        }
-      } catch (capError) {
-        console.log("No se pudieron obtener capacidades, usando valores por defecto");
+        formats = await invoke('get_camera_formats', { cameraId });
+        console.log("Formatos compatibles:", formats);
+      } catch (fmtErr) {
+        console.warn("No se pudieron obtener formatos, usando default:", fmtErr);
       }
 
-      // Buscar dispositivo de audio asociado
+      setCameraFormats(formats);
+      const defaultFormat = formats.length > 0 ? formats[0] : { width: 1280, height: 720, fps: 30 };
+      setSelectedFormat(defaultFormat);
+
+      await invoke('start_video_stream', {
+        cameraId,
+        width: defaultFormat.width,
+        height: defaultFormat.height,
+        fps: defaultFormat.fps
+      });
+
+      // --- RECUPERAR AUDIO MEDIANTE WEBRTC ---
+      // Buscamos un dispositivo de audio que coincida con la capturadora
       const allDevices = await navigator.mediaDevices.enumerateDevices();
-      const audioDevices = allDevices.filter(d => d.kind === 'audioinput');
-      
+      const audioInputs = allDevices.filter(d => d.kind === 'audioinput');
+
       let matchedAudioDevice = null;
       if (device.groupId) {
-        matchedAudioDevice = audioDevices.find(a => a.groupId === device.groupId);
-      }
-      
-      // Fallback: intentar por nombre (label) excluyendo "(video)" y buscando coincidencias
-      if (!matchedAudioDevice && device.label) {
-        const cleanName = device.label.replace(/\(.*\)/g, '').replace(/video/ig, '').trim().toLowerCase();
-        if (cleanName.length > 3) {
-          matchedAudioDevice = audioDevices.find(a => a.label.toLowerCase().includes(cleanName));
-        }
+        matchedAudioDevice = audioInputs.find(a => a.groupId === device.groupId);
       }
 
-      if (matchedAudioDevice) {
-        console.log(`🎤 Dispositivo de audio asociado encontrado: ${matchedAudioDevice.label}`);
-      } else {
-        console.log(`🔇 No se encontró dispositivo de audio específico para ${device.label}. Se usará predeterminado o ninguno.`);
+      if (!matchedAudioDevice) {
+        // Fallback heurístico por similitud de nombre (ej: "USB Video Device" -> "USB Audio Device")
+        const videoLabelBase = device.label.replace(/\s*\([^)]*\)\s*/g, '').trim();
+        matchedAudioDevice = audioInputs.find(a => {
+          const audioLabelBase = a.label.replace(/\s*\([^)]*\)\s*/g, '').trim();
+          return a.label.includes(videoLabelBase) || audioLabelBase === videoLabelBase;
+        });
       }
 
-      const baseAudioConstraints = matchedAudioDevice
-        ? { deviceId: { exact: matchedAudioDevice.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-        : { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
-
-      // Intentar con la máxima resolución detectada o valores ideales
-      const constraints = {
-        video: { 
-          deviceId: { exact: device.deviceId },
-          width: maxResolution ? { exact: maxResolution.width } : { ideal: 1920 },
-          height: maxResolution ? { exact: maxResolution.height } : { ideal: 1080 },
-          frameRate: maxResolution ? { ideal: maxResolution.frameRate } : { ideal: 60 }
-        },
-        audio: baseAudioConstraints
-      };
+      console.log("Audio device emparejado (WebRTC):", matchedAudioDevice);
 
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (constraintError) {
-        console.log("Restricciones máximas no soportadas, intentando con valores ideales");
-        
-        // Segundo intento con valores ideales sin exact
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { 
-              deviceId: { exact: device.deviceId },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              frameRate: { ideal: 60 }
-            },
-            audio: baseAudioConstraints
-          });
-        } catch (idealError) {
-          console.log("Valores ideales no soportados, intentando sin restricciones de audio específico");
-          
-          // Tercer intento sin deviceId de audio (algunas capturadoras no tienen audio)
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: { exact: device.deviceId } },
-              audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false
-              }
-            });
-          } catch (audioError) {
-            console.log("Audio no disponible, intentando solo video");
-            
-            // Último intento: solo video sin audio
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: { exact: device.deviceId } }
-            });
-          }
+        const audioConstraints = {
+          video: false, // El video se encarga Rust nativo
+          audio: matchedAudioDevice ? { deviceId: { exact: matchedAudioDevice.deviceId } } : true,
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         }
-      }
-
-      if (videoRef.current && stream) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.muted = false;
-        videoRef.current.volume = 1.0;
-
-        // Mostrar la resolución real obtenida
-        const videoTrack = stream.getVideoTracks()[0];
-        const settings = videoTrack.getSettings();
-        console.log(`✅ Resolución final: ${settings.width}x${settings.height} @ ${settings.frameRate}fps`);
-        
-        // Mostrar información de audio
-        const audioTracks = stream.getAudioTracks();
-        const streamHasAudio = audioTracks.length > 0;
-        setHasAudio(streamHasAudio);
-
-        if (streamHasAudio) {
-          const audioTrack = audioTracks[0];
-          const audioSettings = audioTrack.getSettings();
-          console.log(`🔊 Audio disponible - Dispositivo: ${audioTrack.label}`);
-          console.log("Configuración de audio:", audioSettings);
-        } else {
-          console.log("⚠️ Sin audio disponible en este dispositivo");
-        }
-        
-        // Mostrar información adicional
-        console.log("Configuración completa del video:", settings);
-      } else if (!stream) {
+        setHasAudio(stream.getAudioTracks().length > 0);
+      } catch (audioErr) {
+        console.warn("No se pudo iniciar el audio WebRTC:", audioErr);
         setHasAudio(false);
       }
+
+      setIsNativeStream(true);
+      setStreamKey(Date.now());
 
       setSelectedDevice(device);
       setError(null);
     } catch (err) {
-      console.error("Error al seleccionar dispositivo:", err);
-      setError(`Error al acceder al dispositivo: ${device.label}`);
+      console.error("Error al seleccionar dispositivo nativo:", err);
+      setError(`Error al iniciar la capturadora en Rust: ${device.label}`);
+    }
+  };
+
+  const changeFormat = async (format) => {
+    if (!selectedDevice) return;
+    try {
+      console.log("Cambiando formato a:", format);
+      const cameraId = parseInt(selectedDevice.deviceId, 10);
+      await invoke('start_video_stream', {
+        cameraId,
+        width: format.width,
+        height: format.height,
+        fps: format.fps
+      });
+      setSelectedFormat(format);
+      setStreamKey(Date.now());
+    } catch (err) {
+      console.error("Error cambiando el formato:", err);
+      setError("Error al aplicar el nuevo formato de resolución.");
     }
   };
 
@@ -205,7 +171,12 @@ export function useVideoDevices(videoRef) {
     selectedDevice,
     error,
     hasAudio,
+    isNativeStream,
+    streamKey,
+    cameraFormats,
+    selectedFormat,
     selectDevice,
+    changeFormat,
     reconnectDevice,
     refreshDevices: getDevices
   };

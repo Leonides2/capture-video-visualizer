@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "capture-video-visualizer",
+        "title": "Capture Video Visualizer",
         "width": 800,
         "height": 600
       }
@@ -26,9 +26,15 @@
       {
         "identifier": "core:allow-all",
         "allow": [
-          { "name": "core:window:allow-create" },
-          { "name": "core:window:allow-center" },
-          { "name": "core:window:allow-request-user-attention" }
+          {
+            "name": "core:window:allow-create"
+          },
+          {
+            "name": "core:window:allow-center"
+          },
+          {
+            "name": "core:window:allow-request-user-attention"
+          }
         ]
       }
     ]
