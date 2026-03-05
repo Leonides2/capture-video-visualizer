@@ -12,7 +12,7 @@ function App() {
   const videoRef = useRef(null);
   const videoContainerRef = useRef(null);
 
-  const { videoDevices, selectedDevice, error, selectDevice, reconnectDevice } = useVideoDevices(videoRef);
+  const { videoDevices, selectedDevice, error, hasAudio, selectDevice, reconnectDevice } = useVideoDevices(videoRef);
   const { zoom, objectFit, setZoom, setObjectFit, toggleFullscreen, resetZoom } = useVideoControls(videoContainerRef);
 
   const handleSelectDevice = async (device) => {
@@ -23,7 +23,7 @@ function App() {
   return (
     <main className="container mx-auto min-h-screen min-w-screen bg-linear-to-br from-gray-900 to-gray-800 relative">
       <MenuButton onClick={() => setIsMenuOpen(!isMenuOpen)} />
-      
+
       <DeviceMenu
         isOpen={isMenuOpen}
         devices={videoDevices}
@@ -50,6 +50,7 @@ function App() {
         isVisible={!!selectedDevice}
         videoRef={videoRef}
         onReconnect={reconnectDevice}
+        hasAudio={hasAudio}
       />
     </main>
   );

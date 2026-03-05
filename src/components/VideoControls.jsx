@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function VideoControls({
   zoom,
@@ -9,11 +9,32 @@ export default function VideoControls({
   onToggleFullscreen,
   isVisible,
   videoRef,
-  onReconnect
+  onReconnect,
+  hasAudio = true
 }) {
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+
+  useEffect(() => {
+    if (!hasAudio) {
+      setVolume(0);
+      setIsMuted(true);
+      if (videoRef?.current) {
+        videoRef.current.volume = 0;
+        videoRef.current.muted = true;
+      }
+    } else {
+      if (isMuted && volume === 0) {
+        setVolume(100);
+        setIsMuted(false);
+        if (videoRef?.current) {
+          videoRef.current.volume = 1;
+          videoRef.current.muted = false;
+        }
+      }
+    }
+  }, [hasAudio, videoRef]);
 
   if (!isVisible) return null;
 
@@ -84,31 +105,28 @@ export default function VideoControls({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onObjectFitChange('contain')}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              objectFit === 'contain'
+            className={`px-3 py-1 rounded text-sm transition-colors ${objectFit === 'contain'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-            }`}
+              }`}
           >
             Ajustar
           </button>
           <button
             onClick={() => onObjectFitChange('cover')}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              objectFit === 'cover'
+            className={`px-3 py-1 rounded text-sm transition-colors ${objectFit === 'cover'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-            }`}
+              }`}
           >
             Llenar
           </button>
           <button
             onClick={() => onObjectFitChange('fill')}
-            className={`px-3 py-1 rounded text-sm transition-colors ${
-              objectFit === 'fill'
+            className={`px-3 py-1 rounded text-sm transition-colors ${objectFit === 'fill'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
-            }`}
+              }`}
           >
             Estirar
           </button>
@@ -129,11 +147,10 @@ export default function VideoControls({
           <button
             onClick={handleReconnect}
             disabled={isReconnecting}
-            className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${
-              isReconnecting
+            className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1 ${isReconnecting
                 ? 'bg-yellow-600 text-white cursor-wait'
                 : 'bg-orange-600 hover:bg-orange-700 text-white'
-            }`}
+              }`}
             title="Reiniciar conexión con el dispositivo seleccionado"
           >
             {isReconnecting ? (
@@ -147,7 +164,7 @@ export default function VideoControls({
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 -960 960 960" width="16" fill="currentColor">
-                  <path d="M480-120q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-480h-60l90-90 90 90H120q0 125 87.5 212.5T480-60q125 0 212.5-87.5T780-360h60q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm0-240q-100 0-170-70t-70-170q0-100 70-170t170-70q100 0 170 70t70 170q0 100-70 170t-170 70Z"/>
+                  <path d="M480-120q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-480h-60l90-90 90 90H120q0 125 87.5 212.5T480-60q125 0 212.5-87.5T780-360h60q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm0-240q-100 0-170-70t-70-170q0-100 70-170t170-70q100 0 170 70t70 170q0 100-70 170t-170 70Z" />
                 </svg>
                 Reconectar
               </>
@@ -168,16 +185,19 @@ export default function VideoControls({
         <div className="flex items-center gap-2">
           <button
             onClick={toggleMute}
-            className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-sm transition-colors"
+            disabled={!hasAudio}
+            className={`px-2 py-1 rounded text-sm transition-colors ${!hasAudio ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white'
+              }`}
             aria-label={isMuted ? "Activar audio" : "Silenciar"}
+            title={!hasAudio ? "Audio no disponible" : ""}
           >
             {isMuted ? (
               <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
-                <path d="M792-56 671-177q-25 16-53 27.5T560-131v-82q14-5 27.5-10t25.5-12L480-368v208L280-360H120v-240h128L56-792l56-56 736 736-56 56Zm-8-232-58-58q17-31 25.5-65t8.5-70q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 53-14.5 102T784-288ZM650-422l-90-90v-130q47 22 73.5 66t26.5 96q0 15-2.5 29.5T650-422ZM480-592 376-696l104-104v208Zm-80 238v-94l-72-72H200v80h114l86 86Zm-36-130Z"/>
+                <path d="M792-56 671-177q-25 16-53 27.5T560-131v-82q14-5 27.5-10t25.5-12L480-368v208L280-360H120v-240h128L56-792l56-56 736 736-56 56Zm-8-232-58-58q17-31 25.5-65t8.5-70q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 53-14.5 102T784-288ZM650-422l-90-90v-130q47 22 73.5 66t26.5 96q0 15-2.5 29.5T650-422ZM480-592 376-696l104-104v208Zm-80 238v-94l-72-72H200v80h114l86 86Zm-36-130Z" />
               </svg>
             ) : (
               <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
-                <path d="M560-131v-82q90-26 145-100t55-168q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 127-78 224.5T560-131ZM120-360v-240h160l200-200v640L280-360H120Zm440 40v-322q47 22 73.5 66t26.5 96q0 51-26.5 94.5T560-320ZM400-606l-86 86H200v80h114l86 86v-252ZM300-480Z"/>
+                <path d="M560-131v-82q90-26 145-100t55-168q0-94-55-168T560-749v-82q124 28 202 125.5T840-481q0 127-78 224.5T560-131ZM120-360v-240h160l200-200v640L280-360H120Zm440 40v-322q47 22 73.5 66t26.5 96q0 51-26.5 94.5T560-320ZM400-606l-86 86H200v80h114l86 86v-252ZM300-480Z" />
               </svg>
             )}
           </button>
@@ -187,10 +207,13 @@ export default function VideoControls({
             max="100"
             value={isMuted ? 0 : volume}
             onChange={(e) => handleVolumeChange(Number(e.target.value))}
-            className="w-24 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+            disabled={!hasAudio}
+            className={`w-24 h-2 rounded-lg appearance-none ${!hasAudio ? 'bg-gray-800 cursor-not-allowed' : 'bg-gray-700 cursor-pointer'}`}
             aria-label="Control de volumen"
           />
-          <span className="text-white text-sm min-w-10">{isMuted ? 0 : volume}%</span>
+          <span className={`text-sm min-w-10 whitespace-nowrap ${!hasAudio ? 'text-gray-500' : 'text-white'}`}>
+            {!hasAudio ? "Sin Audio" : `${isMuted ? 0 : volume}%`}
+          </span>
         </div>
       </div>
     </div>

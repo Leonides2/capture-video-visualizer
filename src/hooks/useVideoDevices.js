@@ -4,6 +4,7 @@ export function useVideoDevices(videoRef) {
   const [videoDevices, setVideoDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [error, setError] = useState(null);
+  const [hasAudio, setHasAudio] = useState(true);
 
   const getDevices = async () => {
     try {
@@ -72,6 +73,33 @@ export function useVideoDevices(videoRef) {
         console.log("No se pudieron obtener capacidades, usando valores por defecto");
       }
 
+      // Buscar dispositivo de audio asociado
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      const audioDevices = allDevices.filter(d => d.kind === 'audioinput');
+      
+      let matchedAudioDevice = null;
+      if (device.groupId) {
+        matchedAudioDevice = audioDevices.find(a => a.groupId === device.groupId);
+      }
+      
+      // Fallback: intentar por nombre (label) excluyendo "(video)" y buscando coincidencias
+      if (!matchedAudioDevice && device.label) {
+        const cleanName = device.label.replace(/\(.*\)/g, '').replace(/video/ig, '').trim().toLowerCase();
+        if (cleanName.length > 3) {
+          matchedAudioDevice = audioDevices.find(a => a.label.toLowerCase().includes(cleanName));
+        }
+      }
+
+      if (matchedAudioDevice) {
+        console.log(`🎤 Dispositivo de audio asociado encontrado: ${matchedAudioDevice.label}`);
+      } else {
+        console.log(`🔇 No se encontró dispositivo de audio específico para ${device.label}. Se usará predeterminado o ninguno.`);
+      }
+
+      const baseAudioConstraints = matchedAudioDevice
+        ? { deviceId: { exact: matchedAudioDevice.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        : { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+
       // Intentar con la máxima resolución detectada o valores ideales
       const constraints = {
         video: { 
@@ -80,12 +108,7 @@ export function useVideoDevices(videoRef) {
           height: maxResolution ? { exact: maxResolution.height } : { ideal: 1080 },
           frameRate: maxResolution ? { ideal: maxResolution.frameRate } : { ideal: 60 }
         },
-        audio: {
-          deviceId: { exact: device.deviceId },
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        }
+        audio: baseAudioConstraints
       };
 
       try {
@@ -102,12 +125,7 @@ export function useVideoDevices(videoRef) {
               height: { ideal: 1080 },
               frameRate: { ideal: 60 }
             },
-            audio: {
-              deviceId: { exact: device.deviceId },
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false
-            }
+            audio: baseAudioConstraints
           });
         } catch (idealError) {
           console.log("Valores ideales no soportados, intentando sin restricciones de audio específico");
@@ -145,7 +163,10 @@ export function useVideoDevices(videoRef) {
         
         // Mostrar información de audio
         const audioTracks = stream.getAudioTracks();
-        if (audioTracks.length > 0) {
+        const streamHasAudio = audioTracks.length > 0;
+        setHasAudio(streamHasAudio);
+
+        if (streamHasAudio) {
           const audioTrack = audioTracks[0];
           const audioSettings = audioTrack.getSettings();
           console.log(`🔊 Audio disponible - Dispositivo: ${audioTrack.label}`);
@@ -156,6 +177,8 @@ export function useVideoDevices(videoRef) {
         
         // Mostrar información adicional
         console.log("Configuración completa del video:", settings);
+      } else if (!stream) {
+        setHasAudio(false);
       }
 
       setSelectedDevice(device);
@@ -181,6 +204,7 @@ export function useVideoDevices(videoRef) {
     videoDevices,
     selectedDevice,
     error,
+    hasAudio,
     selectDevice,
     reconnectDevice,
     refreshDevices: getDevices
