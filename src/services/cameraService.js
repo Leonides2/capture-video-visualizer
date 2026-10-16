@@ -31,8 +31,13 @@ export const cameraService = {
     return formats.map(toCaptureFormat);
   },
 
-  startStream(deviceId, { width, height, fps }) {
-    return invoke(COMMANDS.startStream, { cameraId: deviceId, width, height, fps });
+  /**
+   * Sin `codec`, el backend elige el formato compatible más cercano.
+   * @returns {Promise<import("@/models/captureFormat").CaptureFormat>} Formato realmente activo.
+   */
+  async startStream(deviceId, { width, height, fps, codec }) {
+    const active = await invoke(COMMANDS.startStream, { cameraId: deviceId, width, height, fps, codec });
+    return toCaptureFormat(active);
   },
 
   stopStream() {

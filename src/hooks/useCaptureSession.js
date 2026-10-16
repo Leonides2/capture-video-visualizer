@@ -28,8 +28,9 @@ export function useCaptureSession() {
 
   const start = async ({ device, format, newConnection, errorMessage }) => {
     try {
-      await startStream({ device, format });
-      streamStarted({ device, format, newConnection });
+      // El backend puede activar un formato distinto si el pedido no está disponible.
+      const active = await startStream({ device, format });
+      streamStarted({ device, format: active, newConnection });
       return true;
     } catch (err) {
       console.error("Error al iniciar el stream nativo:", err);

@@ -7,7 +7,9 @@ const clampZoom = (value) => Math.min(ZOOM.max, Math.max(ZOOM.min, value));
 export const useViewStore = create((set) => ({
   zoom: ZOOM.default,
   objectFit: DEFAULT_FIT_MODE,
+  showStats: false,
   actions: {
+    toggleStats: () => set((state) => ({ showStats: !state.showStats })),
     setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
     zoomBy: (delta) => set((state) => ({ zoom: clampZoom(state.zoom + delta) })),
     setObjectFit: (objectFit) => set({ objectFit }),

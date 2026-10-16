@@ -142,8 +142,12 @@ capture-video-visualizer/
 │   └── main.jsx                # Punto de entrada (QueryClientProvider)
 ├── src-tauri/                  # Backend de Tauri (Rust)
 │   ├── src/
-│   │   ├── lib.rs              # Comandos Tauri
-│   │   └── camera.rs           # Captura nativa (nokhwa) + servidor MJPEG (axum)
+│   │   ├── lib.rs              # Comandos Tauri (async, sin bloquear la UI)
+│   │   ├── stream_server.rs    # Servidor MJPEG (axum) que entrega siempre el último frame
+│   │   └── camera/
+│   │       ├── mod.rs          # Dispositivos, formatos e hilo de captura (nokhwa)
+│   │       ├── encoder.rs      # MJPEG passthrough / YUYV·NV12 -> JPEG
+│   │       └── stats.rs        # Métricas (evento capture-stats)
 │   ├── tauri.conf.json
 │   └── Cargo.toml
 ├── public/

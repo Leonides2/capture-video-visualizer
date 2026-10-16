@@ -1,6 +1,12 @@
 /** Servidor MJPEG local levantado por el backend de Rust (ver src-tauri/src/camera.rs). */
 export const STREAM_SERVER_URL = "http://127.0.0.1:18342/stream";
 
+/** Eventos emitidos por el hilo de captura (src-tauri/src/camera/mod.rs). */
+export const CAPTURE_EVENTS = {
+  stats: "capture-stats",
+  error: "capture-error",
+};
+
 export const ZOOM = {
   min: 50,
   max: 200,
