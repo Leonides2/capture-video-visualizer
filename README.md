@@ -115,26 +115,43 @@ src-tauri/target/release/capture-video-visualizer.exe
 ```
 capture-video-visualizer/
 ├── src/
-│   ├── components/          # Componentes React
-│   │   ├── MenuButton.jsx   # Botón del menú
-│   │   ├── DeviceMenu.jsx   # Menú de dispositivos
-│   │   ├── VideoPlayer.jsx  # Reproductor de video
-│   │   └── VideoControls.jsx # Controles de zoom/audio
-│   ├── hooks/               # Custom React hooks
-│   │   ├── useVideoDevices.js  # Lógica de dispositivos
-│   │   └── useVideoControls.js # Lógica de controles
-│   ├── App.jsx             # Componente principal
-│   ├── App.css             # Estilos globales
-│   └── main.jsx            # Punto de entrada
-├── src-tauri/              # Backend de Tauri (Rust)
+│   ├── config/constants.js     # URLs, límites de zoom, modos de ajuste, mensajes
+│   ├── lib/queryClient.js      # Configuración de TanStack Query
+│   ├── models/                 # Modelos y helpers de dominio (CaptureFormat)
+│   ├── services/               # Acceso a Rust (invoke) y a WebRTC (audio)
+│   │   ├── cameraService.js
+│   │   └── audioService.js
+│   ├── queries/cameraQueries.js # Query keys y queryOptions (dispositivos, formatos)
+│   ├── stores/                 # Estado global con Zustand
+│   │   ├── sessionStore.js     # Dispositivo/formato activo, errores
+│   │   ├── viewStore.js        # Zoom y modo de ajuste
+│   │   └── audioStore.js       # Volumen y mute
+│   ├── hooks/                  # Lógica reutilizable
+│   │   ├── useCaptureSession.js # Seleccionar, cambiar formato, reconectar, apagar
+│   │   ├── useAutoConnect.js
+│   │   ├── useCameraFormats.js
+│   │   ├── useDeviceAudio.js
+│   │   └── useFullscreen.js
+│   ├── components/
+│   │   ├── ui/                 # Primitivas: Button, Slider, Divider, iconos
+│   │   ├── devices/            # Botón y menú de dispositivos
+│   │   ├── session/            # Apagar / Reconectar
+│   │   ├── player/             # VideoStage (MJPEG) y AudioOutput
+│   │   └── controls/           # Barra de controles y cada control
+│   ├── App.jsx                 # Composición de la pantalla
+│   └── main.jsx                # Punto de entrada (QueryClientProvider)
+├── src-tauri/                  # Backend de Tauri (Rust)
 │   ├── src/
-│   │   └── lib.rs          # Código Rust
-│   ├── tauri.conf.json     # Configuración de Tauri
-│   └── Cargo.toml          # Dependencias de Rust
-├── public/                 # Archivos estáticos
-├── package.json            # Dependencias de Node
-└── vite.config.js          # Configuración de Vite
+│   │   ├── lib.rs              # Comandos Tauri
+│   │   └── camera.rs           # Captura nativa (nokhwa) + servidor MJPEG (axum)
+│   ├── tauri.conf.json
+│   └── Cargo.toml
+├── public/
+├── package.json
+└── vite.config.js              # Alias "@" -> src
 ```
+
+**Flujo de datos:** los componentes no llaman a `invoke` directamente. Leen el estado de los stores (Zustand) y de la caché de TanStack Query, y ejecutan acciones mediante `useCaptureSession`, que usa los `services`.
 
 ## 🎓 Conceptos Técnicos (Para Desarrolladores)
 
